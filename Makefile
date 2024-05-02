@@ -11,25 +11,25 @@ PORT = 12345
 # Adresa IP a serverului
 IP_SERVER = 127.0.0.1
 
-all: server client
+all: server subscriber
 
 common.o: common.c
 
 # Compileaza server.c
 server: server.c common.o
 
-# Compileaza client.c
-client: client.c common.o
+# Compileaza subscriber.c
+subscriber: subscriber.c common.o
 
-.PHONY: clean run_server run_client
+.PHONY: clean run_server run_subscriber
 
 # Ruleaza serverul
 run_server:
 	./server ${IP_SERVER} ${PORT}
 
-# Ruleaza clientul 	
-run_client:
-	./client ${IP_SERVER} ${PORT}
+# Ruleaza subscriberul 	
+run_subscriber:
+	./subscriber ${IP_SERVER} ${PORT}
 
 clean:
-	rm -rf server client *.o *.dSYM
+	rm -rf server subscriber *.o *.dSYM

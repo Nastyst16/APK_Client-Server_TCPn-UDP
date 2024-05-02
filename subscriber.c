@@ -79,14 +79,14 @@ void run_client(int sockfd) {
 }
 
 int main(int argc, char *argv[]) {
-  if (argc != 3) {
+  if (argc != 4) {
     printf("\n Usage: %s <ip> <port>\n", argv[0]);
     return 1;
   }
 
   // Parsam port-ul ca un numar
   uint16_t port;
-  int rc = sscanf(argv[2], "%hu", &port);
+  int rc = sscanf(argv[3], "%hu", &port);
   DIE(rc != 1, "Given port is invalid");
 
   // Obtinem un socket TCP pentru conectarea la server
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
   memset(&serv_addr, 0, socket_len);
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_port = htons(port);
-  rc = inet_pton(AF_INET, argv[1], &serv_addr.sin_addr.s_addr);
+  rc = inet_pton(AF_INET, argv[2], &serv_addr.sin_addr.s_addr);
   DIE(rc <= 0, "inet_pton");
 
   // Ne conectăm la server

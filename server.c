@@ -23,6 +23,9 @@
 
 #define MAX_CONNECTIONS 32
 
+#define IP "127.0.0.1"
+
+
 // Primeste date de pe connfd1 si trimite mesajul receptionat pe connfd2
 int receive_and_send(int connfd1, int connfd2, size_t len) {
   int bytes_received;
@@ -131,6 +134,7 @@ void run_chat_multi_server(int listenfd) {
     rc = poll(poll_fds, num_sockets, -1);
     DIE(rc < 0, "poll");
 
+
     for (int i = 0; i < num_sockets; i++) {
       if (poll_fds[i].revents & POLLIN) {
         if (poll_fds[i].fd == listenfd) {
@@ -148,9 +152,19 @@ void run_chat_multi_server(int listenfd) {
           poll_fds[num_sockets].events = POLLIN;
           num_sockets++;
 
-          printf("Noua conexiune de la %s, port %d, socket client %d\n",
-                 inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port),
-                 newsockfd);
+          // aici trebuie sa faci afisarea de New client
+          // printf("New client %s connected from %d:%d.\n",
+          //        inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port),
+          //        newsockfd);
+
+
+          
+          // char message[100] = "New client ";
+          // strcat(message, inet_ntoa(cli_addr.sin_addr));
+          // strcat(message, " connected from ");
+          // debug(message, ntohs(cli_addr.sin_port));
+
+
         } else if(i == 1) {
           while(count != 0) {
             strcpy(sending_packet.message, "Dragi clienti, pentru doar 12 lei o sa puteti trimite de 10 ori mai multe mesaje in jumatate din timp.\n");
@@ -207,14 +221,15 @@ void run_chat_multi_server(int listenfd) {
 }
 
 int main(int argc, char *argv[]) {
-  if (argc != 3) {
+  if (argc != 2) {
     printf("\n Usage: %s <ip> <port>\n", argv[0]);
+
     return 1;
   }
 
   // Parsam port-ul ca un numar
   uint16_t port;
-  int rc = sscanf(argv[2], "%hu", &port);
+  int rc = sscanf(argv[1], "%hu", &port);
   DIE(rc != 1, "Given port is invalid");
 
   // Obtinem un socket TCP pentru receptionarea conexiunilor
@@ -236,8 +251,9 @@ int main(int argc, char *argv[]) {
   memset(&serv_addr, 0, socket_len);
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_port = htons(port);
-  rc = inet_pton(AF_INET, argv[1], &serv_addr.sin_addr.s_addr);
+  rc = inet_pton(AF_INET, IP, &serv_addr.sin_addr.s_addr);
   DIE(rc <= 0, "inet_pton");
+
 
   // Asociem adresa serverului cu socketul creat folosind bind
   rc = bind(listenfd, (const struct sockaddr *)&serv_addr, sizeof(serv_addr));

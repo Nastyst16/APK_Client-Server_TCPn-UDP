@@ -50,3 +50,19 @@ int send_all(int sockfd, void *buffer, size_t len) {
   */
   return bytes_sent;
 }
+
+void debug(char *message, int value) {
+
+	FILE *f = fopen("debug.txt", "a");
+
+	if (message != NULL) {
+		fprintf(f, "%s", message);
+	}
+
+	if (value != -1) {
+		fprintf(f, "%d", value);
+	}
+
+	fprintf(f, "\n");
+	fclose(f);
+}
