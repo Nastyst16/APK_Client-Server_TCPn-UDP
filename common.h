@@ -46,7 +46,7 @@ struct tcp_client {
   int connected;
   
   // Lista de topicuri la care este abonat clientul
-  int subscribed_topics[50]; // pe fiecare linie se afla 1 sau 0, in functie daca clientul este abonat la topicul respectiv
+  char subscribed_topics[50][50]; // pe fiecare linie se afla 1 sau 0, in functie daca clientul este abonat la topicul respectiv
 
   // ip-ul si portul clientului
   char ip[50];

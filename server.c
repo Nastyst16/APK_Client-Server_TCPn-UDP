@@ -30,7 +30,8 @@
 
 
 tcp_client clients[MAX_CONNECTIONS];
-char topics[50][50]; // pe fiecare linie se afla un topic
+int clients_count = 0;
+// char topics[50][50]; // pe fiecare linie se afla un topic
 ////// inca ceva aici
 
 
@@ -182,6 +183,28 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
           // trimitem pachetul la toti clientii abonati la topic
 
 ///////////// 92 ---> 113 sffff !!!
+
+          for (int j = 0; j < MAX_CONNECTIONS; j++) {
+            if (clients[j].connected == 0) {
+              continue;
+            }
+
+            int q = 0;
+            while (strcmp(clients[j].subscribed_topics[q], "") != 0) {
+              if (strncmp(clients[j].subscribed_topics[q], topic, strlen(topic)) == 0) {
+
+                debug(received_packet.message, -1);
+
+                send_all(clients[j].sockfd, message, rc);
+              }
+
+              q++;
+            }
+
+          }
+
+          // printf("Received message: %s\n", received_packet.message);
+
           
 
         } else if (poll_fds[i].fd == STDIN_FILENO) {
@@ -205,6 +228,8 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
           rc = recv_all(poll_fds[i].fd, &request, sizeof(request));
           DIE(rc <= 0, "recv");
 
+          tcp_client *subs_client = NULL;
+
           switch(request.request_type) {
             case CONNECT:
               int already_connected = 0;
@@ -221,10 +246,10 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
               if (!already_connected) {
 
-                char message[100];
-                memset(message, 0, 100);
-                sprintf(message, "New client %s connected from %s:%d.\n", request.client_id, request.client_ip, request.client_port);
-                debug(message, -1);
+                // char message[100];
+                // memset(message, 0, 100);
+                // sprintf(message, "New client %s connected from %s:%d.\n", request.client_id, request.client_ip, request.client_port);
+                // debug(message, -1);
 
 
                 // printing the following pattern: New client <ID_CLIENT> connected from IP:PORT.
@@ -239,9 +264,14 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                 new_client->connected = 1;
 
                 for (int i = 0; i < 50; i++) {
-                  new_client->subscribed_topics[i] = 0;
+                  for (int j = 0; j < 50; j++) {
+                    new_client->subscribed_topics[i][j] = 0;
+                  } 
                 }
 
+
+                clients[clients_count] = *new_client;
+                clients_count++;
 
               }
 
@@ -249,17 +279,123 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
             case SUBSCRIBE:
               // adaugam clientul la lista de abonati
+              // searching for the client
+
+              char message[100];
+              memset(message, 0, 100);
+
+
+              subs_client = NULL;
+              for (int j = 0; j < MAX_CONNECTIONS; j++) {
+
+                if (&clients[j] == NULL || clients[j].connected == 0) {
+                  continue;
+                }
+
+                if (strcmp(clients[j].id, request.client_id) == 0) {
+                  subs_client = &clients[j];
+                  break;
+                }
+              }
+
+              // if (subs_client == NULL) {
+              //   sprintf(message, "Client %s not connected.\n", request.client_id);
+              //   debug(message, -1);
+              // } else {
+              //   sprintf(message, "Client %s subscribed to topic %s.\n", subs_client->id, request.topic);
+              //   debug(message, -1);
+              // }
+
+              if (subs_client) {
+                int q = 0;
+                int found = 0;
+                while (strcmp(subs_client->subscribed_topics[q], "") != 0) {
+
+                  // if already subscribed
+                  if (strncmp(subs_client->subscribed_topics[q], request.topic, strlen(request.topic)) == 0) {
+                    // printf("Client %s already subscribed to topic %s.\n", subs_client->id, request.topic);
+                    found = 1;
+                    break;
+                  }
+
+                  q++;
+                }
+
+                if (found == 0) {
+                  strcpy(subs_client->subscribed_topics[q], request.topic);
+                  // printf("Client %s subscribed to topic %s.\n", subs_client->id, request.topic);
+                }
+
+              }
+
+
+
+
               break;
             case UNSUBSCRIBE:
-              // scoatem clientul din lista de abonati
+              // // scoatem clientul din lista de abonati
+              // // searching for the client
+              subs_client = NULL;
+              for (int j = 0; j < MAX_CONNECTIONS; j++) {
+
+                if (&clients[j] == NULL || clients[j].connected == 0) {
+                  continue;
+                }
+
+                if (strcmp(clients[j].id, request.client_id) == 0) {
+                  subs_client = &clients[j];
+                  break;
+                }
+              }
+
+              if (subs_client) {
+                int q = 0;
+                int found = 0;
+                while (strcmp(subs_client->subscribed_topics[q], "") != 0) {
+
+                  // if already subscribed
+                  if (strncmp(subs_client->subscribed_topics[q], request.topic, strlen(request.topic)) == 0) {
+                    // printf("Client %s unsubscribed from topic %s.\n", subs_client->id, request.topic);
+                    // deleting the topic
+                    strcpy(subs_client->subscribed_topics[q], "");
+
+
+                    found = 1;
+                    break;
+                  }
+
+                  q++;
+                }
+
+                if (found == 0) {
+                  // printf("Client %s not subscribed to topic %s.\n", subs_client->id, request.topic);
+                }
+
+              }
+
+
               break;
             case EXIT:
               // inchidem conexiunea
+              for (int j = 0; j < MAX_CONNECTIONS; j++) {
+                if (clients[j].sockfd == poll_fds[i].fd) {
+
+                  // printf("Client %s disconnected.\n", clients[j].id);
+
+                  // debug("exitttt", -1);
+
+                  clients[j].connected = 0;
+                  close(poll_fds[i].fd);
+                  break;
+                }
+              }
+
               close(poll_fds[i].fd);
-              break;}
-          
-
-
+              break;
+              
+              
+            }
+        
 
         }
 
@@ -281,7 +417,6 @@ int main(int argc, char *argv[]) {
 
 
   memset(clients, 0, sizeof(clients));
-  memset(topics, 0, sizeof(topics));
 
   // Parsam port-ul ca un numar
   uint16_t port;

@@ -1,10 +1,16 @@
-client nou
-
-New client C1 connected from 127.0.0.1:12345.
-
-New client C1 connected from 127.0.0.1:12345.
-
-New client C1 connected from 127.0.0.1:12345.
-
-New client C1 connected from 127.0.0.1:12345.
-
+non_negative_int
+negative_int
+larger_value
+large_negative_value
+cdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwx
+at_is_small_short_real
+at_is_big_short_real
+at_is_integer_short_real
+oat_seventeen
+oat_minus_seventeen
+strange_float
+negative_strange_float
+subunitary_float
+negative_subunitary_float
+a_string_announce
+ge_string
