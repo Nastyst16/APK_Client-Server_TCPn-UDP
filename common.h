@@ -17,3 +17,46 @@ struct chat_packet {
 };
 
 #endif
+
+enum request_type {
+  SUBSCRIBE = 0,
+  UNSUBSCRIBE = 1,
+  CONNECT = 2,
+  EXIT = 3
+};
+
+typedef struct tcp_request tcp_request;
+
+struct tcp_request {
+  char client_id[10];
+
+  char client_ip[50];
+  int client_port;
+
+  uint8_t request_type;
+  uint32_t topic_len;
+  char topic[50];
+};
+
+typedef struct tcp_client tcp_client;
+
+struct tcp_client {
+  int sockfd;
+  char id[10];
+  int connected;
+  
+  // Lista de topicuri la care este abonat clientul
+  int subscribed_topics[50]; // pe fiecare linie se afla 1 sau 0, in functie daca clientul este abonat la topicul respectiv
+
+  // ip-ul si portul clientului
+  char ip[50];
+  int port;
+};
+
+
+enum data_type {
+  INT = 0,
+  SHORT_REAL = 1,
+  FLOAT = 2,
+  STRING = 3
+};

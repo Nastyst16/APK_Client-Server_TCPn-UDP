@@ -1,5 +1,10 @@
-127
-C1
-12345
-New client 127.0.0.1 connected from 43770
-New client 127.0.0.1 connected from 32814
+client nou
+
+New client C1 connected from 127.0.0.1:12345.
+
+New client C1 connected from 127.0.0.1:12345.
+
+New client C1 connected from 127.0.0.1:12345.
+
+New client C1 connected from 127.0.0.1:12345.
+

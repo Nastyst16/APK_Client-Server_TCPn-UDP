@@ -21,13 +21,25 @@
 #include "helpers.h"
 #define MAX_CONNECTIONS 32
 
-void run_client(int sockfd) {
+void run_client(int sockfd, char *argv[]) {
   char buf[MSG_MAXSIZE + 1];
   memset(buf, 0, MSG_MAXSIZE + 1);
   int rc;
 
-  struct chat_packet sent_packet;
-  struct chat_packet recv_packet;
+  // struct chat_packet sent_packet;
+  // struct chat_packet recv_packet;
+
+  tcp_request request;
+  memset(&request, 0, sizeof(tcp_request));
+  strcpy(request.client_id, argv[1]);
+  request.request_type = CONNECT;
+  strcpy(request.client_ip, argv[2]);
+  request.client_port = atoi(argv[3]);
+
+  // Trimitem requestul la server
+  send_all(sockfd, &request, sizeof(tcp_request));
+
+
 
   /*
     TODO 2.2: Multiplexati intre citirea de la tastatura si primirea unui
@@ -52,6 +64,7 @@ void run_client(int sockfd) {
     for (int i = 0; i < num_sockets; i++) {
       if (poll_fds[i].revents & POLLIN) {
         if (i == 0) {
+
           memset(buf, 0, sizeof(buf));
           fgets(buf, MSG_MAXSIZE, stdin);
           
@@ -59,19 +72,37 @@ void run_client(int sockfd) {
             continue;
           }
 
-          sent_packet.len = strlen(buf) + 1;
-          strcpy(sent_packet.message, buf);
 
-          // Trimitem pachetul la server.
-          send_all(sockfd, &sent_packet, sizeof(sent_packet));
-        } else {
-          int rc = recv_all(sockfd, &recv_packet, sizeof(recv_packet));
-          
-          if (rc <= 0) {
-            break;
+          if (strncmp(buf, "exit", 4) == 0) {
+            request.request_type = EXIT;
+            send_all(sockfd, &request, sizeof(tcp_request));
+            return;
           }
 
-          printf("%s", recv_packet.message);
+/// pentru subscribe si unsubscripe poti sa le pui la comun, dupa verifici daca e subscribe sau unsubscribe
+/// ca sa nu ai cod duplicat
+          if (strncmp(buf, "subscribe", 9) == 0) {
+            request.request_type = SUBSCRIBE;
+            char *token = strtok(buf, " ");
+            token = strtok(NULL, " ");
+            strcpy(request.topic, token);
+            request.topic_len = strlen(request.topic);
+            send_all(sockfd, &request, sizeof(tcp_request));
+
+            printf("Subscribed to topic.\n");
+          }
+
+          if (strncmp(buf, "unsubscribe", 11) == 0) {
+            request.request_type = UNSUBSCRIBE;
+            char *token = strtok(buf, " ");
+            token = strtok(NULL, " ");
+            strcpy(request.topic, token);
+            request.topic_len = strlen(request.topic);
+            send_all(sockfd, &request, sizeof(tcp_request));
+
+            printf("Unsubscribed from topic.\n");
+          }
+
         }
       }
     }
@@ -83,6 +114,8 @@ int main(int argc, char *argv[]) {
     printf("\n Usage: %s <ip> <port>\n", argv[0]);
     return 1;
   }
+
+  setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 
   // Parsam port-ul ca un numar
   uint16_t port;
@@ -108,7 +141,7 @@ int main(int argc, char *argv[]) {
   rc = connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
   DIE(rc < 0, "connect");
 
-  run_client(sockfd);
+  run_client(sockfd, argv);
 
   // Inchidem conexiunea si socketul creat
   close(sockfd);

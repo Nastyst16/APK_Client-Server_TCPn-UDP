@@ -21,9 +21,17 @@
 #include "common.h"
 #include "helpers.h"
 
+#include <netinet/tcp.h> // oare am voie???????
+
+
 #define MAX_CONNECTIONS 32
 
 #define IP "127.0.0.1"
+
+
+tcp_client clients[MAX_CONNECTIONS];
+char topics[50][50]; // pe fiecare linie se afla un topic
+////// inca ceva aici
 
 
 // Primeste date de pe connfd1 si trimite mesajul receptionat pe connfd2
@@ -91,7 +99,7 @@ void run_chat_server(int listenfd) {
   close(connfd2);
 }
 
-void run_chat_multi_server(int listenfd) {
+void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
   struct pollfd poll_fds[MAX_CONNECTIONS];
   int num_sockets = 2;
@@ -109,25 +117,11 @@ void run_chat_multi_server(int listenfd) {
   poll_fds[0].fd = listenfd;
   poll_fds[0].events = POLLIN;
 
-  /*
-    TODO 3: Adaugati un timerfd. Read-ul pe el se va debloca periodic, moment
-    in care veti trimite anuntul promotional catre toti clientii.
-  */
-  int timerfd;
-  timerfd = timerfd_create(CLOCK_REALTIME,  0);
-
-  struct itimerspec spec;     
-  spec.it_value.tv_sec = 4;    
-  spec.it_value.tv_nsec = 0;    
-  spec.it_interval.tv_sec = 4;    
-  spec.it_interval.tv_nsec = 0;    
-  timerfd_settime(timerfd, 0, &spec, NULL);
-
-  uint64_t count;
-  read(timerfd, &count, sizeof(count));
-
-  poll_fds[1].fd = timerfd;
+  poll_fds[1].fd = fd_udp_client;
   poll_fds[1].events = POLLIN;
+
+  poll_fds[2].fd = STDIN_FILENO;
+  poll_fds[2].events = POLLIN;
 
   while (1) {
     // Asteptam sa primim ceva pe unul dintre cei num_sockets socketi
@@ -144,77 +138,133 @@ void run_chat_multi_server(int listenfd) {
           socklen_t cli_len = sizeof(cli_addr);
           const int newsockfd =
               accept(listenfd, (struct sockaddr *)&cli_addr, &cli_len);
-          DIE(newsockfd < 0, "accept");
+          DIE(newsockfd < 0, "erroare la 'accept'");
+
+          // nu stiu daca am nevoie.....
+          int enable = 1;
+          setsockopt(newsockfd, SOL_SOCKET, SO_REUSEADDR | TCP_NODELAY, &enable,
+                    sizeof(int));
+          DIE(newsockfd < 0, "setsockopt() failed");
+          /// ......portiunea asta de cod;
+
+          // salvare client
+          tcp_client *new_client = malloc(sizeof(tcp_client));
+          new_client->sockfd = newsockfd;
+          new_client->connected = 0;
+
+          strcpy(new_client->ip, inet_ntoa(cli_addr.sin_addr));
+          new_client->port = cli_addr.sin_port;
+
+
 
           // Adaugam noul socket intors de accept() la multimea descriptorilor
           // de citire
           poll_fds[num_sockets].fd = newsockfd;
           poll_fds[num_sockets].events = POLLIN;
           num_sockets++;
-
-          // aici trebuie sa faci afisarea de New client
-          // printf("New client %s connected from %d:%d.\n",
-          //        inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port),
-          //        newsockfd);
-
-
           
-          // char message[100] = "New client ";
-          // strcat(message, inet_ntoa(cli_addr.sin_addr));
-          // strcat(message, " connected from ");
-          // debug(message, ntohs(cli_addr.sin_port));
 
+        } else if (poll_fds[i].fd == fd_udp_client) {
 
-        } else if(i == 1) {
-          while(count != 0) {
-            strcpy(sending_packet.message, "Dragi clienti, pentru doar 12 lei o sa puteti trimite de 10 ori mai multe mesaje in jumatate din timp.\n");
-            sending_packet.len = strlen(sending_packet.message) + 1;
+          struct sockaddr_in udp_cli_addr;
+          socklen_t udp_cli_len = sizeof(udp_cli_addr);
 
+          int rc = recvfrom(fd_udp_client, &received_packet, sizeof(received_packet), 0, (struct sockaddr *)&udp_cli_addr, &udp_cli_len);
+          DIE(rc < 0, "recvfrom");
+
+          void *message = malloc(rc);
+          memcpy(message, &received_packet, rc);
+
+          char topic[51];
+          memcpy(topic, message, 50);
+          topic[51] = '\0';
+
+          // trimitem pachetul la toti clientii abonati la topic
+
+///////////// 92 ---> 113 sffff !!!
+          
+
+        } else if (poll_fds[i].fd == STDIN_FILENO) {
+
+          void *stdin_message = malloc(MSG_MAXSIZE + 1);
+          memset(stdin_message, 0, MSG_MAXSIZE + 1);
+          fgets(stdin_message, MSG_MAXSIZE, stdin);
+
+          if (strcmp(stdin_message, "exit\n") == 0) {
+            
             for (int j = 2; j < num_sockets; j++) {
-              int rc = send_all(poll_fds[j].fd, &sending_packet, sizeof(received_packet));
-
-              if (rc <= 0) {
-                perror("send_all");
-                return;
-              }
+              close(poll_fds[j].fd);
+              return;
             }
 
-            count--;
           }
 
-          read(timerfd, &count, sizeof(count));
         } else {
-          // Am primit date pe unul din socketii de client, asa ca le receptionam
-          int rc = recv_all(poll_fds[i].fd, &received_packet,
-                            sizeof(received_packet));
-          DIE(rc < 0, "recv");
 
-          if (rc == 0) {
-            printf("Socket-ul client %d a inchis conexiunea\n", i);
-            close(poll_fds[i].fd);
+          tcp_request request;
+          rc = recv_all(poll_fds[i].fd, &request, sizeof(request));
+          DIE(rc <= 0, "recv");
 
-            // Scoatem din multimea de citire socketul inchis
-            for (int j = i; j < num_sockets - 1; j++) {
-              poll_fds[j] = poll_fds[j + 1];
-            }
+          switch(request.request_type) {
+            case CONNECT:
+              int already_connected = 0;
+              for (int j = 0; j < MAX_CONNECTIONS; j++) {
+                if (strcmp(clients[j].id, request.client_id) == 0) {
+                  already_connected = 1;
 
-            num_sockets--;
-          } else {
-            printf("S-a primit de la clientul de pe socketul %d mesajul: %s\n",
-                   poll_fds[i].fd, received_packet.message);
-            /* TODO 2.1: Trimite mesajul catre toti ceilalti clienti */
-            for (int j = 2; j < num_sockets; j++) {
-              if(i != j) {
-                int rc = send_all(poll_fds[j].fd, &received_packet, sizeof(received_packet));
+                  printf("Client %s already connected.\n", request.client_id);
+                  close(poll_fds[i].fd);
 
-                if (rc <= 0) {
-                  perror("send_all");
-                  return;
+                  break;
                 }
               }
-            }
-          }
+
+              if (!already_connected) {
+
+                char message[100];
+                memset(message, 0, 100);
+                sprintf(message, "New client %s connected from %s:%d.\n", request.client_id, request.client_ip, request.client_port);
+                debug(message, -1);
+
+
+                // printing the following pattern: New client <ID_CLIENT> connected from IP:PORT.
+                printf("New client %s connected from %s:%d.\n", request.client_id, request.client_ip, request.client_port);
+
+                // adaugam clientul in lista de clienti
+                tcp_client *new_client = malloc(sizeof(tcp_client));
+                new_client->sockfd = poll_fds[i].fd;
+                strcpy(new_client->id, request.client_id);
+                strcpy(new_client->ip, request.client_ip);
+                new_client->port = request.client_port;
+                new_client->connected = 1;
+
+                for (int i = 0; i < 50; i++) {
+                  new_client->subscribed_topics[i] = 0;
+                }
+
+
+              }
+
+
+
+            case SUBSCRIBE:
+              // adaugam clientul la lista de abonati
+              break;
+            case UNSUBSCRIBE:
+              // scoatem clientul din lista de abonati
+              break;
+            case EXIT:
+              // inchidem conexiunea
+              close(poll_fds[i].fd);
+              break;}
+          
+
+
+
         }
+
+
+
       }
     }
   }
@@ -227,6 +277,12 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  setvbuf(stdout, NULL, _IONBF, BUFSIZ);
+
+
+  memset(clients, 0, sizeof(clients));
+  memset(topics, 0, sizeof(topics));
+
   // Parsam port-ul ca un numar
   uint16_t port;
   int rc = sscanf(argv[1], "%hu", &port);
@@ -235,6 +291,9 @@ int main(int argc, char *argv[]) {
   // Obtinem un socket TCP pentru receptionarea conexiunilor
   const int listenfd = socket(AF_INET, SOCK_STREAM, 0);
   DIE(listenfd < 0, "socket");
+
+  const int fd_udp_client = socket(AF_INET, SOCK_DGRAM, 0);
+  DIE(fd_udp_client < 0, "socket");
 
   // Completăm in serv_addr adresa serverului, familia de adrese si portul
   // pentru conectare
@@ -259,11 +318,13 @@ int main(int argc, char *argv[]) {
   rc = bind(listenfd, (const struct sockaddr *)&serv_addr, sizeof(serv_addr));
   DIE(rc < 0, "bind");
 
+  rc = bind(fd_udp_client, (const struct sockaddr *)&serv_addr, sizeof(serv_addr));
+
   /*
     TODO 2.1: Folositi implementarea cu multiplexare
   */
   // run_chat_server(listenfd);
-  run_chat_multi_server(listenfd);
+  run_chat_multi_server(listenfd, fd_udp_client);
 
   // Inchidem listenfd
   close(listenfd);
