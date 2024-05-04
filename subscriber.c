@@ -192,13 +192,9 @@ void run_client(int sockfd, char *argv[]) {
           int rc = recv_all(sockfd, &received_packet, sizeof(struct chat_packet));
           DIE(rc <= 0, "recv_all received_packet");
 
-          // debug(received_packet.message, received_packet.len);
-          char *message_to_parse = malloc(received_packet.len);
-          memcpy(message_to_parse, received_packet.message, received_packet.len);
+          parse_subscription(received_packet.message);
 
-          parse_subscription(message_to_parse);
 
-          free(message_to_parse);
         }
       }
     }

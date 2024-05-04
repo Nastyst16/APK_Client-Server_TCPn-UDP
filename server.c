@@ -170,24 +170,19 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
           struct sockaddr_in udp_cli_addr;
           socklen_t udp_cli_len = sizeof(udp_cli_addr);
 
-          char message[MSG_MAXSIZE + 1];
-          memset(message, 0, MSG_MAXSIZE + 1);
-
-          rc = recvfrom(fd_udp_client, message, MSG_MAXSIZE, 0, (struct sockaddr *)&udp_cli_addr, &udp_cli_len);
+          char message[50 + 1 + MSG_MAXSIZE + 1];
+          memset(message, 0, 50 + 1 + MSG_MAXSIZE + 1);
+          rc = recvfrom(fd_udp_client, message, 50 + 1 + MSG_MAXSIZE + 1, 0, (struct sockaddr *)&udp_cli_addr, &udp_cli_len);
           DIE(rc < 0, "recvfrom");
 
-          // message[rc] = '\0'; // ???????????????????
-
-          debug(message, -1);
-
-          char topic[51];
+          char topic[50];
           memset(topic, 0, 50);
           memcpy(topic, message, 50);
-          topic[51] = '\0';
 
-          // debug(message, -1);
+          sending_packet.len = rc;
+          memcpy(sending_packet.message, message, rc);
 
-          // trimitem pachetul la toti clientii abonati la topic
+
 
 ///////////// 92 ---> 113 sffff !!!
 
@@ -200,7 +195,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
             while (strcmp(clients[j].subscribed_topics[q], "") != 0) {
               if (strncmp(clients[j].subscribed_topics[q], topic, strlen(topic)) == 0) {
 
-                // debug(received_packet.message, -1);
+                debug(sending_packet.message, -1);
 
                 sending_packet.len = strlen(message) + 1;
                 memcpy(sending_packet.message, message, strlen(message) + 1);
