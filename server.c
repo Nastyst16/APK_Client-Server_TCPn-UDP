@@ -198,11 +198,89 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
               continue;
             }
 
+            int string_ok = 0;
+
             int q = 0;
             while (strcmp(clients[j].subscribed_topics[q], "") != 0) {
-              if (strncmp(clients[j].subscribed_topics[q], topic, strlen(topic)) == 0) {
 
-                // debug(sending_packet.message, -1);
+
+              if (strchr(clients[j].subscribed_topics[q], '*') != NULL ||
+                  strchr(clients[j].subscribed_topics[q], '+') != NULL) {
+
+
+                if (clients[j].subscribed_topics[q] == NULL ||
+                    strlen(clients[j].subscribed_topics[q]) == 0) {
+                  continue;
+                }
+
+                char client_topic[50];
+                memset(client_topic, 0, 50);
+                memcpy(client_topic, clients[j].subscribed_topics[q], 50);
+
+                
+
+                if (strlen(topic) == strlen(client_topic)) {
+                  debug("topic si client_topic au acelasi length", -1);
+                  debug(topic, -1);
+                  debug(client_topic, -1);
+                } else {
+                  debug("e bine, tipic si client_topic nu au acelasi len", -1);
+                  debug(topic, -1);
+                  debug(client_topic, -1);
+                }
+
+                int j, k;
+                for (j = 0, k = 0; j < strlen(topic) || k < strlen(client_topic); j++, k++) {
+
+                  if (topic[j] == client_topic[k]) {
+                    continue;
+                  }
+
+                  if (client_topic[k] == '*') {
+                    k++;
+                    if (client_topic[k] == '/')
+                      k++;
+
+                    while (client_topic[k] != topic[j] || j < strlen(topic)) {
+                      j++;
+                    }
+
+                  }
+
+                  if (client_topic[k] == '+') {
+                    k++;
+                    if (client_topic[k] == '/')
+                      k++;
+
+                    while (topic[j] != '/' && j < strlen(topic)) {
+                      j++;
+                    }
+                    
+                  }
+
+                }
+
+                if (k == strlen(client_topic) && j == strlen(topic)) {
+                  string_ok = 1;
+
+                  debug("string ok", -1);
+                  debug(topic, -1);
+                  debug(client_topic, -1);
+
+                  // sending_packet.len = strlen(message) + 1;
+                  // memcpy(sending_packet.message, message, strlen(message) + 1);
+
+                  // rc = send_all(clients[j].sockfd, &sending_packet, sizeof(sending_packet));
+                  // DIE(rc <= 0, "send_all");
+
+                }
+
+
+
+
+
+
+              } else if (strncmp(clients[j].subscribed_topics[q], topic, strlen(topic)) == 0) {
 
                 sending_packet.len = strlen(message) + 1;
                 memcpy(sending_packet.message, message, strlen(message) + 1);
@@ -214,6 +292,10 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
               q++;
             }
 
+            if (string_ok) {
+              debug(NULL, -1);
+            }
+
           }
 
           // printf("Received message: %s\n", received_packet.message);
@@ -222,11 +304,15 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
         } else if (poll_fds[i].fd == STDIN_FILENO) {
 
+          // debug("input stdin", -1);
+
           void *stdin_message = malloc(MSG_MAXSIZE + 1);
           memset(stdin_message, 0, MSG_MAXSIZE + 1);
           fgets(stdin_message, MSG_MAXSIZE, stdin);
 
-          if (strcmp(stdin_message, "exit\n") == 0) {
+          debug(stdin_message, -1);
+
+          if (strncmp(stdin_message, "exit", 4) == 0) {
             
             for (int j = 2; j < num_sockets; j++) {
               close(poll_fds[j].fd);
