@@ -21,6 +21,9 @@
 #include "helpers.h"
 #define MAX_CONNECTIONS 32
 
+int ok_debug = 0;
+
+
 double power(double base, int exponent) {
     double result = 1.0;
     
@@ -80,8 +83,6 @@ void parse_subscription(char *buff) {
 	u_int8_t type = *buff;
 	buff += sizeof(u_int8_t);
 
-  // debug("type: ", type);
-
 	switch (type) {
 	case INT:
 		print_int(buff, topic);
@@ -121,7 +122,6 @@ void run_client(int sockfd, char *argv[]) {
   send_all(sockfd, &request, sizeof(tcp_request));
 
 
-
   /*
     TODO 2.2: Multiplexati intre citirea de la tastatura si primirea unui
     mesaj, ca sa nu mai fie impusa ordinea.
@@ -153,10 +153,17 @@ void run_client(int sockfd, char *argv[]) {
             continue;
           }
 
-
           if (strncmp(buf, "exit", 4) == 0) {
             request.request_type = EXIT;
+
+            // // debug(buf, 1000);
+
+            // char debug_message[200];
+            // sprintf(debug_message, "Client %s with id %s disconnected.\n", request.client_id, request.client_ip);
+
             send_all(sockfd, &request, sizeof(tcp_request));
+
+            // ok_debug = 1;
             return;
           }
 
@@ -193,7 +200,6 @@ void run_client(int sockfd, char *argv[]) {
           DIE(rc <= 0, "recv_all received_packet");
 
           parse_subscription(received_packet.message);
-
 
         }
       }
