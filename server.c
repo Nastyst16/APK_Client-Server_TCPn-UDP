@@ -133,6 +133,12 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
 
     for (int i = 0; i < num_sockets; i++) {
+
+      if (&poll_fds[i] == NULL) {
+        debug("poll_fds[i] is NULL", -1);
+        continue;
+      }
+
       if (poll_fds[i].revents & POLLIN) {
         if (poll_fds[i].fd == listenfd) {
           // Am primit o cerere de conexiune pe socketul de listen, pe care
@@ -247,7 +253,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
               //   debug(debug_message, -1);
               // }
 
-              debug(request.client_id, 50);
+              debug(request.client_id, 999);
 
               int already_connected = 0;
               for (int j = 0; j < MAX_CONNECTIONS; j++) {
@@ -271,12 +277,12 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                   printf("Client %s already connected.\n", request.client_id);
                   close(poll_fds[i].fd);
 
-                  char message[100];
-                  for (int j = 0; j < MAX_CONNECTIONS; j++) {
-                    memset(message, 0, 100);
-                    sprintf(message, "client id %s", clients[j].id);
-                    debug(message, -1);
-                  }
+                  // char message[100];
+                  // for (int j = 0; j < MAX_CONNECTIONS; j++) {
+                  //   memset(message, 0, 100);
+                  //   sprintf(message, "client id %s", clients[j].id);
+                  //   debug(message, -1);
+                  // }
 
 
                   // nu stiu daca e bine
@@ -315,10 +321,10 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
                     printf("New client %s connected from %s:%d.\n", request.client_id, request.client_ip, request.client_port);
 
-                    if (ok_debug == 1) {
-                      debug("pulicica", -1);
-                      ok_debug = 2;
-                    }
+                    // if (ok_debug == 1) {
+                    //   debug("pulicica", -1);
+                    //   ok_debug = 2;
+                    // }
 
                     found = 1;
                     break;
@@ -358,6 +364,11 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
                 clients[clients_count] = *new_client;
                 clients_count++;
+
+                // adding the client to the poll_fds array
+                poll_fds[num_sockets].fd = poll_fds[i].fd;
+                poll_fds[num_sockets].events = POLLIN;
+                num_sockets++;
 
               }
 
@@ -481,6 +492,13 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                   clients[j].connected = 0;
                   // close(clients[j].sockfd);
                   close(poll_fds[i].fd);
+
+                  // updating the poll_fds array
+                  for (int j = i; j < num_sockets - 1; j++) {
+                    poll_fds[j] = poll_fds[j + 1];
+                  }
+                  --num_sockets;
+
                   break;
                 }
               }
