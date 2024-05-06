@@ -105,7 +105,7 @@ void run_chat_server(int listenfd) {
 void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
   struct pollfd poll_fds[MAX_CONNECTIONS];
-  int num_sockets = 2;
+  int num_sockets = 3;
   int rc;
   
   struct chat_packet sending_packet;
@@ -182,10 +182,10 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
           rc = recvfrom(fd_udp_client, message, 50 + 1 + MSG_MAXSIZE + 1, 0, (struct sockaddr *)&udp_cli_addr, &udp_cli_len);
           DIE(rc < 0, "recvfrom");
 
-          char topic[51];
+          char topic[50];
           memset(topic, 0, 50);
           memcpy(topic, message, 50);
-          topic[51] = '\0';
+          // topic[51] = '\0';
 
           sending_packet.len = rc;
           memcpy(sending_packet.message, message, rc);
@@ -199,43 +199,43 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
               continue;
             }
 
+            debug(clients[j].id, -1); 
+            // char deb_mes[50];
+            // memset(deb_mes, 0, 10);
+            // sprintf(deb_mes, "Client %s", clients[j].id);
+
+
             int string_ok = 0;
 
             int q = 0;
             while (strcmp(clients[j].subscribed_topics[q], "") != 0) {
+
+              if (clients[j].subscribed_topics[q] == NULL ||
+                strlen(clients[j].subscribed_topics[q]) == 0) {
+                continue;
+              }
+
+              // debug("subscribed topic", -1);
+              // debug(clients[j].subscribed_topics[q], -1);
+
+
 
 
               if (strchr(clients[j].subscribed_topics[q], '*') != NULL ||
                   strchr(clients[j].subscribed_topics[q], '+') != NULL) {
 
 
-                if (clients[j].subscribed_topics[q] == NULL ||
-                    strlen(clients[j].subscribed_topics[q]) == 0) {
-                  continue;
-                }
-
-                char client_topic[51];
-                memset(client_topic, 0, 50);
-                memcpy(client_topic, clients[j].subscribed_topics[q], 50);
-
                 
 
-                if (strlen(topic) == strlen(client_topic)) {
-                  debug("topic si client_topic au acelasi length", -1);
-                  debug(topic, -1);
-                  debug(client_topic, -1);
-                } else {
-                  debug("e bine, tipic si client_topic nu au acelasi len", -1);
-                  debug(topic, -1);
-                  debug(client_topic, -1);
-                }
+                char client_topic[50];
+                memset(client_topic, 0, 50);
+                memcpy(client_topic, clients[j].subscribed_topics[q], 50);
+                client_topic[strlen(client_topic) - 1] = '\0'; // because it is \n
+
+
 
                 int j = 0, k = 0;
                 while (j < strlen(topic) && k < strlen(client_topic)) {
-
-                  if (topic[j] == NULL || client_topic[k] == NULL)
-                    break;
-
 
                   if (topic[j] == client_topic[k]) {
                       j++;
@@ -262,32 +262,45 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                     }
                   }
 
+                  if (client_topic[k] != topic[j]) {
+                    // printf("Not matched\n");
+                    break;
+                  }
+
                 }
 
                 if (k == strlen(client_topic) && j == strlen(topic)) {
                   string_ok = 1;
 
-                  debug("string ok", -1);
-                  debug(topic, -1);
-                  debug(client_topic, -1);
-
+                  // debug("string ok", -1);
+                  // debug(topic, -1);
+                  // debug(client_topic, -1);
+                  
                   // sending_packet.len = strlen(message) + 1;
                   // memcpy(sending_packet.message, message, strlen(message) + 1);
 
-                  // rc = send_all(clients[j].sockfd, &sending_packet, sizeof(sending_packet));
-                  // DIE(rc <= 0, "send_all");
+                  // debug("se duce pe pula?", -1);
 
+                  // // rc = send_all(clients[j].sockfd, &sending_packet, sizeof(sending_packet));
+                  // // DIE(rc <= 0, "send_all");
+
+                  // char debug_message[2000];
+                  // memset(debug_message, 0, 2000);
+                  // sprintf(debug_message, "Sending message: %s\n", sending_packet.message);
+                  // debug(debug_message, -1);
+
+
+
+
+                  // debug("nu s a dus pe pula", -1);
                 }
 
 
+              }
+              
+              if (strncmp(clients[j].subscribed_topics[q], topic, strlen(topic)) == 0 || string_ok == 1) {
 
-
-
-
-              } else if (strncmp(clients[j].subscribed_topics[q], topic, strlen(topic)) == 0) {
-
-                sending_packet.len = strlen(message) + 1;
-                memcpy(sending_packet.message, message, strlen(message) + 1);
+                // debug(sending_packet.message, -1);
 
                 rc = send_all(clients[j].sockfd, &sending_packet, sizeof(sending_packet));
                 DIE(rc <= 0, "send_all");
@@ -296,10 +309,13 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
               q++;
             }
 
-            if (string_ok) {
-              debug(NULL, -1);
-            }
+            // if (string_ok) {
+            //   debug(NULL, -1);
+            // }
 
+
+
+            
           }
 
           // printf("Received message: %s\n", received_packet.message);
@@ -308,13 +324,8 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
         } else if (poll_fds[i].fd == STDIN_FILENO) {
 
-          // debug("input stdin", -1);
-
-          void *stdin_message = malloc(MSG_MAXSIZE + 1);
-          memset(stdin_message, 0, MSG_MAXSIZE + 1);
-          fgets(stdin_message, MSG_MAXSIZE, stdin);
-
-          debug(stdin_message, -1);
+          char stdin_message[100];
+          fscanf(stdin, "%s", stdin_message);
 
           if (strncmp(stdin_message, "exit", 4) == 0) {
             
@@ -343,7 +354,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
               //   debug(debug_message, -1);
               // }
 
-              debug(request.client_id, 999);
+              // debug(request.client_id, 999);
 
               int already_connected = 0;
               for (int j = 0; j < MAX_CONNECTIONS; j++) {
@@ -445,7 +456,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                 new_client->port = request.client_port;
                 new_client->connected = 1;
 
-                for (int i = 0; i < 50; i++) {
+                for (int i = 0; i < 100; i++) {
                   for (int j = 0; j < 50; j++) {
                     new_client->subscribed_topics[i][j] = 0;
                   } 
@@ -486,6 +497,14 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                 }
               }
 
+
+              // if (request.topic != NULL && strlen(request.topic) >= 10)
+              // if (subs_client == NULL && strncmp(request.topic, "*/pressure", 10) == 0) {
+              //   debug("incredibil", -1);
+              //   break;
+              // }
+
+
               // if (subs_client == NULL) {
               //   sprintf(message, "Client %s not connected.\n", request.client_id);
               //   debug(message, -1);
@@ -495,24 +514,39 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
               // }
 
               if (subs_client) {
+                // int q = 0;
+                // int found = 0;
+                // while (strcmp(subs_client->subscribed_topics[q], "") != 0) {
+
+                //   // if already subscribed
+                //   if (strncmp(subs_client->subscribed_topics[q], request.topic, strlen(request.topic)) == 0) {
+                //     // printf("Client %s already subscribed to topic %s.\n", subs_client->id, request.topic);
+                //     found = 1;
+                //     break;
+                //   }
+
+                //   q++;
+                // }
+
+                // if (found == 0) {
+                //   strcpy(subs_client->subscribed_topics[q], request.topic);
+                //   // printf("Client %s subscribed to topic %s.\n", subs_client->id, request.topic);
+                // }
+
+
                 int q = 0;
-                int found = 0;
                 while (strcmp(subs_client->subscribed_topics[q], "") != 0) {
 
-                  // if already subscribed
-                  if (strncmp(subs_client->subscribed_topics[q], request.topic, strlen(request.topic)) == 0) {
-                    // printf("Client %s already subscribed to topic %s.\n", subs_client->id, request.topic);
-                    found = 1;
-                    break;
-                  }
+                  // printf("Topic nr %d: %s", q, subs_client->subscribed_topics[q]);
+
 
                   q++;
                 }
 
-                if (found == 0) {
-                  strcpy(subs_client->subscribed_topics[q], request.topic);
-                  // printf("Client %s subscribed to topic %s.\n", subs_client->id, request.topic);
-                }
+                // strcpy(subs_client->subscribed_topics[q], request.topic);
+                memcpy(subs_client->subscribed_topics[q], request.topic, strlen(request.topic));
+                // debug(request.client_ip, -1);
+                // debug(request.topic, -1);
 
               }
 

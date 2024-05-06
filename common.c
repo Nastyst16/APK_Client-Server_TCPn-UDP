@@ -1,4 +1,5 @@
 #include "common.h"
+#include <string.h> 
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -54,9 +55,16 @@ int send_all(int sockfd, void *buffer, size_t len) {
 void debug(char *message, int value) {
 
 	FILE *f = fopen("debug.txt", "a");
+  
 
 	if (message != NULL) {
-		fprintf(f, "%s", message);
+		// fprintf(f, "%s", message);
+
+    // maybe message has not \0 at the final
+    for (int i = 0; i < strlen(message); i++) {
+      fprintf(f, "%c", message[i]);
+    }
+
 	}
 
 	if (value != -1) {

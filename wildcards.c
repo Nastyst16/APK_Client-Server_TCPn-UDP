@@ -3,8 +3,8 @@
 
 int main() {
 
-    char topic[] = "upb/precis/100/humidity";
-    char client_topic[] = "*/100/*";
+    char topic[] = "upb/ec/100/pressure";
+    char client_topic[] = "upb/precis/elevator/*/floor";
 
 // upb/precis/100/humidity
 // */100/*
@@ -31,16 +31,18 @@ int main() {
         }
 
         if (client_topic[k] == '+') {
-        k++;
-        // if (client_topic[k] == '/')
-        //     k++;
+            k++;
 
-        while (topic[j] != '/' && j < strlen(topic)) {
-            j++;
-        }
+            while (topic[j] != '/' && j < strlen(topic)) {
+                j++;
+            }
         
         }
 
+        if (client_topic[k] != topic[j]) {
+            printf("Not matched\n");
+            break;
+        }
     }
 
     if (k == strlen(client_topic) && j == strlen(topic)) {
