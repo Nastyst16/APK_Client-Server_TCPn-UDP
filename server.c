@@ -182,9 +182,10 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
           rc = recvfrom(fd_udp_client, message, 50 + 1 + MSG_MAXSIZE + 1, 0, (struct sockaddr *)&udp_cli_addr, &udp_cli_len);
           DIE(rc < 0, "recvfrom");
 
-          char topic[50];
+          char topic[51];
           memset(topic, 0, 50);
           memcpy(topic, message, 50);
+          topic[51] = '\0';
 
           sending_packet.len = rc;
           memcpy(sending_packet.message, message, rc);
@@ -213,7 +214,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                   continue;
                 }
 
-                char client_topic[50];
+                char client_topic[51];
                 memset(client_topic, 0, 50);
                 memcpy(client_topic, clients[j].subscribed_topics[q], 50);
 
@@ -229,33 +230,36 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                   debug(client_topic, -1);
                 }
 
-                int j, k;
-                for (j = 0, k = 0; j < strlen(topic) || k < strlen(client_topic); j++, k++) {
+                int j = 0, k = 0;
+                while (j < strlen(topic) && k < strlen(client_topic)) {
+
+                  if (topic[j] == NULL || client_topic[k] == NULL)
+                    break;
+
 
                   if (topic[j] == client_topic[k]) {
-                    continue;
+                      j++;
+                      k++;
+                      continue;
                   }
 
                   if (client_topic[k] == '*') {
-                    k++;
-                    if (client_topic[k] == '/')
                       k++;
+                      if (client_topic[k] == '/')
+                          k++;
 
-                    while (client_topic[k] != topic[j] || j < strlen(topic)) {
-                      j++;
+                    while (client_topic[k] != topic[j] && j < strlen(topic)) {
+                        j++;
                     }
 
                   }
 
                   if (client_topic[k] == '+') {
                     k++;
-                    if (client_topic[k] == '/')
-                      k++;
 
                     while (topic[j] != '/' && j < strlen(topic)) {
-                      j++;
+                        j++;
                     }
-                    
                   }
 
                 }
