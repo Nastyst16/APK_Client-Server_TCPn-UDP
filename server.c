@@ -1,10 +1,3 @@
-/*
- * Protocoale de comunicatii
- * Laborator 7 - TCP
- * Echo Server
- * server.c
- */
-
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
@@ -17,11 +10,10 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/timerfd.h>
+#include <netinet/tcp.h>
 
 #include "common.h"
 #include "helpers.h"
-
-#include <netinet/tcp.h> // oare am voie???????
 
 
 #define MAX_CONNECTIONS 32
@@ -33,12 +25,10 @@ int ok_debug = 0;
 
 tcp_client clients[MAX_CONNECTIONS];
 int clients_count = 0;
-// char topics[50][50]; // pe fiecare linie se afla un topic
-////// inca ceva aici
 
 int wildcards(char *topic, char *client_topic) {
 
-
+  // wildccards algorighm, returns 1 if the topic matches the client_topic, 0 otherwise
   int string_ok = 0;
 
   int j = 0, k = 0;
@@ -156,54 +146,46 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
   int rc;
   
   struct chat_packet sending_packet;
-  struct chat_packet received_packet;
 
-  // Setam socket-ul listenfd pentru ascultare
   rc = listen(listenfd, MAX_CONNECTIONS);
   DIE(rc < 0, "listen");
 
-  // Adaugam noul file descriptor (socketul pe care se asculta conexiuni) in
-  // multimea poll_fds
+
+  // adding the listenfd to the poll_fds array
   poll_fds[0].fd = listenfd;
   poll_fds[0].events = POLLIN;
 
+  // adding the udp socket to the poll_fds array
   poll_fds[1].fd = fd_udp_client;
   poll_fds[1].events = POLLIN;
 
+  // adding the stdin to the poll_fds array
   poll_fds[2].fd = STDIN_FILENO;
   poll_fds[2].events = POLLIN;
 
   while (1) {
-    // Asteptam sa primim ceva pe unul dintre cei num_sockets socketi
+    // waiting to receive something on one of the num_sockets sockets
     rc = poll(poll_fds, num_sockets, -1);
     DIE(rc < 0, "poll");
 
 
     for (int i = 0; i < num_sockets; i++) {
 
-      if (&poll_fds[i] == NULL) {
-        debug("poll_fds[i] is NULL", -1);
-        continue;
-      }
-
       if (poll_fds[i].revents & POLLIN) {
         if (poll_fds[i].fd == listenfd) {
-          // Am primit o cerere de conexiune pe socketul de listen, pe care
-          // o acceptam
+          // received a connection request on the listen socket, accept it
           struct sockaddr_in cli_addr;
           socklen_t cli_len = sizeof(cli_addr);
           const int newsockfd =
               accept(listenfd, (struct sockaddr *)&cli_addr, &cli_len);
           DIE(newsockfd < 0, "erroare la 'accept'");
 
-          // nu stiu daca am nevoie.....
-          int enable = 1;
-          setsockopt(newsockfd, SOL_SOCKET, SO_REUSEADDR | TCP_NODELAY, &enable,
-                    sizeof(int));
-          DIE(newsockfd < 0, "setsockopt() failed");
-          /// ......portiunea asta de cod;
+          // disable Nagle's algorithm
+          int flag = 1;
+          rc = setsockopt(newsockfd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+          DIE(rc < 0, "setsockopt");
 
-          // salvare client
+          // saving the new client
           tcp_client *new_client = malloc(sizeof(tcp_client));
           new_client->sockfd = newsockfd;
           new_client->connected = 0;
@@ -224,6 +206,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
           struct sockaddr_in udp_cli_addr;
           socklen_t udp_cli_len = sizeof(udp_cli_addr);
 
+          // 50 for topic, 1 for data_type, MSG_MAXSIZE for message
           char message[50 + 1 + MSG_MAXSIZE + 1];
           memset(message, 0, 50 + 1 + MSG_MAXSIZE + 1);
           rc = recvfrom(fd_udp_client, message, 50 + 1 + MSG_MAXSIZE + 1, 0, (struct sockaddr *)&udp_cli_addr, &udp_cli_len);
@@ -232,29 +215,16 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
           char topic[50];
           memset(topic, 0, 50);
           memcpy(topic, message, 50);
-          // topic[51] = '\0';
 
           sending_packet.len = rc;
           memcpy(sending_packet.message, message, rc);
-
-
-
-///////////// 92 ---> 113 sffff !!!
 
           for (int j = 0; j < MAX_CONNECTIONS; j++) {
             if (&clients[j] == NULL || clients[j].connected == 0) {
               continue;
             }
 
-            // debug(clients[j].id, -1); 
-            // char deb_mes[50];
-            // memset(deb_mes, 0, 10);
-            // sprintf(deb_mes, "Client %s", clients[j].id);
-
-
-            int string_ok = 0;
-
-            int q = 0;
+            int string_ok = 0, q = 0;
             while (strcmp(clients[j].subscribed_topics[q], "") != 0) {
 
               if (clients[j].subscribed_topics[q] == NULL ||
@@ -262,12 +232,8 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                 continue;
               }
 
-              // debug("subscribed topic", -1);
-              // debug(clients[j].subscribed_topics[q], -1);
-
-
-
-
+              // if the topic contains wildcards and matches the client's topic
+              // we send the message to the client
               if (strchr(clients[j].subscribed_topics[q], '*') != NULL ||
                   strchr(clients[j].subscribed_topics[q], '+') != NULL) {
 
@@ -293,9 +259,11 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
         } else if (poll_fds[i].fd == STDIN_FILENO) {
 
+          // reading from stdin
           char stdin_message[100];
           fscanf(stdin, "%s", stdin_message);
 
+          // only exit command is accepted
           if (strncmp(stdin_message, "exit", 4) == 0) {
             
             for (int j = 2; j < num_sockets; j++) {
@@ -328,7 +296,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                   printf("Client %s already connected.\n", request.client_id);
                   close(poll_fds[i].fd);
 
-                  // nu stiu daca e bine
+                  // updating the poll_fds array
                   for (int j = i; j < num_sockets - 1; j++) {
                     poll_fds[j] = poll_fds[j + 1];
                   }
@@ -354,7 +322,6 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                     clients[j].connected = 1;
                     clients[j].sockfd = poll_fds[i].fd;
 
-
                     printf("New client %s connected from %s:%d.\n", request.client_id, request.client_ip, request.client_port);
 
                     found = 1;
@@ -370,7 +337,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                 // printing the following pattern: New client <ID_CLIENT> connected from IP:PORT.
                 printf("New client %s connected from %s:%d.\n", request.client_id, request.client_ip, request.client_port);
 
-                // adaugam clientul in lista de clienti
+                // adding the client to the clients list
                 tcp_client *new_client = malloc(sizeof(tcp_client));
                 new_client->sockfd = poll_fds[i].fd;
                 strcpy(new_client->id, request.client_id);
@@ -383,7 +350,6 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                     new_client->subscribed_topics[i][j] = 0;
                   } 
                 }
-
 
                 clients[clients_count] = *new_client;
                 clients_count++;
@@ -399,12 +365,8 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
 
             case SUBSCRIBE:
-              // adaugam clientul la lista de abonati
+              // adding the client to the list of subscribers
               // searching for the client
-
-              char message[100];
-              memset(message, 0, 100);
-
 
               subs_client = NULL;
               for (int j = 0; j < MAX_CONNECTIONS; j++) {
@@ -427,14 +389,12 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                 }
 
                 memcpy(subs_client->subscribed_topics[q], request.topic, strlen(request.topic));
-
               }
-
 
               break;
             case UNSUBSCRIBE:
-              // // scoatem clientul din lista de abonati
-              // // searching for the client
+              // scoatem clientul din lista de abonati
+              // searching for the client
               subs_client = NULL;
               for (int j = 0; j < MAX_CONNECTIONS; j++) {
 
@@ -453,10 +413,13 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                 
                 while (strcmp(subs_client->subscribed_topics[q], "") != 0) {
 
+                  int found = 0;
                   // if already subscribed
                   if (strncmp(subs_client->subscribed_topics[q], request.topic, strlen(request.topic)) == 0) {
-                    // printf("Client %s unsubscribed from topic %s.\n", subs_client->id, request.topic);
+
                     // deleting the topic
+                    found = 1;
+
                     for (int k = q; k < 100; k++) {
                       if (k == 99) {
                         memset(subs_client->subscribed_topics[k], 0, 50);
@@ -464,19 +427,36 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                         memcpy(subs_client->subscribed_topics[k], subs_client->subscribed_topics[k + 1], 50);
                       }
                     }
-
                     break;
+                  }
+                  
+                  if (found)
+                    if (strchr(request.topic, '*') != NULL || strchr(request.topic, '+') != NULL ||
+                              wildcards(subs_client->subscribed_topics[q], request.topic) == 1) {
+
+                      // if the topic contains wildcards and matches the client's topic
+                      // then unsubscribe the client
+                      debug(subs_client->subscribed_topics[q], -1);
+                      debug(request.topic, -1);
+
+                      for (int k = q; k < 100; k++) {
+                        if (k == 99) {
+                          memset(subs_client->subscribed_topics[k], 0, 50);
+                        } else {
+                          memcpy(subs_client->subscribed_topics[k], subs_client->subscribed_topics[k + 1], 50);
+                        }
+                      }
+
                   }
 
                   q++;
                 }
 
               }
-
-
               break;
+
             case EXIT:
-              // inchidem conexiunea
+              // closing the connection
               for (int j = 0; j < MAX_CONNECTIONS; j++) {
                 if (clients[j].sockfd == poll_fds[i].fd) {
 
@@ -505,7 +485,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
             default:
               break;
                     
-            }
+          }
         
         }
 
@@ -523,15 +503,14 @@ int main(int argc, char *argv[]) {
 
   setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 
-
   memset(clients, 0, sizeof(clients));
 
-  // Parsam port-ul ca un numar
+  // parsing the port as a number
   uint16_t port;
   int rc = sscanf(argv[1], "%hu", &port);
   DIE(rc != 1, "Given port is invalid");
 
-  // Obtinem un socket TCP pentru receptionarea conexiunilor
+  // obtaining a TCP socket for receiving connections
   const int listenfd = socket(AF_INET, SOCK_STREAM, 0);
   DIE(listenfd < 0, "socket");
 
@@ -540,12 +519,11 @@ int main(int argc, char *argv[]) {
 
   // Completăm in serv_addr adresa serverului, familia de adrese si portul
   // pentru conectare
+
+  // 
   struct sockaddr_in serv_addr;
   socklen_t socket_len = sizeof(struct sockaddr_in);
 
-  // Facem adresa socket-ului reutilizabila, ca sa nu primim eroare in caz ca
-  // rulam de 2 ori rapid
-  // Vezi https://stackoverflow.com/questions/3229860/what-is-the-meaning-of-so-reuseaddr-setsockopt-option-linux
   const int enable = 1;
   if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
     perror("setsockopt(SO_REUSEADDR) failed");
@@ -556,20 +534,15 @@ int main(int argc, char *argv[]) {
   rc = inet_pton(AF_INET, IP, &serv_addr.sin_addr.s_addr);
   DIE(rc <= 0, "inet_pton");
 
-
-  // Asociem adresa serverului cu socketul creat folosind bind
+  // asociating the server address with the socket created using bind
   rc = bind(listenfd, (const struct sockaddr *)&serv_addr, sizeof(serv_addr));
   DIE(rc < 0, "bind");
 
   rc = bind(fd_udp_client, (const struct sockaddr *)&serv_addr, sizeof(serv_addr));
 
-  /*
-    TODO 2.1: Folositi implementarea cu multiplexare
-  */
-  // run_chat_server(listenfd);
   run_chat_multi_server(listenfd, fd_udp_client);
 
-  // Inchidem listenfd
+
   close(listenfd);
 
   return 0;

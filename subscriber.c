@@ -108,9 +108,6 @@ void run_client(int sockfd, char *argv[]) {
   memset(buf, 0, MSG_MAXSIZE + 1);
   int rc;
 
-  // struct chat_packet sent_packet;
-  // struct chat_packet recv_packet;
-
   tcp_request request;
   memset(&request, 0, sizeof(tcp_request));
   strcpy(request.client_id, argv[1]);
@@ -118,19 +115,13 @@ void run_client(int sockfd, char *argv[]) {
   strcpy(request.client_ip, argv[2]);
   request.client_port = atoi(argv[3]);
 
-  // Trimitem requestul la server
+  // sennding the request to the server
   send_all(sockfd, &request, sizeof(tcp_request));
 
-
-  /*
-    TODO 2.2: Multiplexati intre citirea de la tastatura si primirea unui
-    mesaj, ca sa nu mai fie impusa ordinea.
-    
-    Hint: server::run_multi_chat_server
-  */
   struct pollfd poll_fds[MAX_CONNECTIONS];
   int num_sockets = 2;
 
+  // add the stdin and the socket to the poll_fds
   poll_fds[0].fd = STDIN_FILENO;
   poll_fds[0].events = POLLIN;
 
@@ -138,7 +129,7 @@ void run_client(int sockfd, char *argv[]) {
   poll_fds[1].events = POLLIN;
 
   while (1) {
-    // Asteptam sa primim ceva pe unul dintre cei num_sockets socketi
+    // waiting for an event on one of the sockets
     rc = poll(poll_fds, num_sockets, -1);
     DIE(rc < 0, "poll");
 
@@ -156,40 +147,27 @@ void run_client(int sockfd, char *argv[]) {
           if (strncmp(buf, "exit", 4) == 0) {
             request.request_type = EXIT;
 
-            // // debug(buf, 1000);
-
-            // char debug_message[200];
-            // sprintf(debug_message, "Client %s with id %s disconnected.\n", request.client_id, request.client_ip);
-
             send_all(sockfd, &request, sizeof(tcp_request));
 
-            // ok_debug = 1;
             return;
           }
 
-/// pentru subscribe si unsubscripe poti sa le pui la comun, dupa verifici daca e subscribe sau unsubscribe
-/// ca sa nu ai cod duplicat
+          char *token = strtok(buf, " ");
+          token = strtok(NULL, " ");
+          strcpy(request.topic, token);
+          request.topic_len = strlen(request.topic);
+          
+
           if (strncmp(buf, "subscribe", 9) == 0) {
             request.request_type = SUBSCRIBE;
-            char *token = strtok(buf, " ");
-            token = strtok(NULL, " ");
-            strcpy(request.topic, token);
-            request.topic_len = strlen(request.topic);
-            send_all(sockfd, &request, sizeof(tcp_request));
-
             printf("Subscribed to topic.\n");
-          }
-
-          if (strncmp(buf, "unsubscribe", 11) == 0) {
+          } else if (strncmp(buf, "unsubscribe", 11) == 0) {
             request.request_type = UNSUBSCRIBE;
-            char *token = strtok(buf, " ");
-            token = strtok(NULL, " ");
-            strcpy(request.topic, token);
-            request.topic_len = strlen(request.topic);
-            send_all(sockfd, &request, sizeof(tcp_request));
-
             printf("Unsubscribed from topic.\n");
           }
+
+          send_all(sockfd, &request, sizeof(tcp_request));
+
 
         } else if (i == 1) {
           

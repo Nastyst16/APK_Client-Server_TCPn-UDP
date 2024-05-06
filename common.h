@@ -9,7 +9,7 @@ int recv_all(int sockfd, void *buff, size_t len);
 void debug(char *message, int value);
 
 /* Dimensiunea maxima a mesajului */
-#define MSG_MAXSIZE 1500 // 1024
+#define MSG_MAXSIZE 1500
 
 struct chat_packet {
   uint16_t len;
@@ -45,10 +45,10 @@ struct tcp_client {
   char id[10];
   int connected;
   
-  // Lista de topicuri la care este abonat clientul
-  char subscribed_topics[100][50]; // pe fiecare linie se afla 1 sau 0, in functie daca clientul este abonat la topicul respectiv
+  // list of topics where the client is subscribed
+  char subscribed_topics[100][50];
 
-  // ip-ul si portul clientului
+  // the ip and port of the client
   char ip[50];
   int port;
 };

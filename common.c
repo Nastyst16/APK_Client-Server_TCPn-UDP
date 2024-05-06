@@ -3,13 +3,10 @@
 
 #include <sys/socket.h>
 #include <sys/types.h>
-// #include "../common/include/utils.h"
 #include "helpers.h"
 
-/*
-    TODO 1.1: Rescrieți funcția de mai jos astfel încât ea să facă primirea
-    a exact len octeți din buffer.
-*/
+
+// functions inspired from lab 7
 int recv_all(int sockfd, void *buffer, size_t len) {
   size_t bytes_received = 0;
   size_t bytes_remaining = len;
@@ -22,16 +19,8 @@ int recv_all(int sockfd, void *buffer, size_t len) {
     bytes_received += res;
   } while (res && bytes_received < bytes_remaining);
 
-  /*
-    TODO: Returnam exact cati octeti am citit
-  */
   return bytes_received;
 }
-
-/*
-    TODO 1.2: Rescrieți funcția de mai jos astfel încât ea să facă trimiterea
-    a exact len octeți din buffer.
-*/
 
 int send_all(int sockfd, void *buffer, size_t len) {
   size_t bytes_sent = 0;
@@ -45,17 +34,14 @@ int send_all(int sockfd, void *buffer, size_t len) {
     bytes_sent += res;
   } while (res && bytes_sent < bytes_remaining);
 
-
-  /*
-    TODO: Returnam exact cati octeti am trimis
-  */
   return bytes_sent;
 }
 
+// this function is used to print debug messages
+// very helpfull and considering not deleting it
 void debug(char *message, int value) {
 
 	FILE *f = fopen("debug.txt", "a");
-  
 
 	if (message != NULL) {
 		// fprintf(f, "%s", message);
