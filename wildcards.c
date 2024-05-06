@@ -4,7 +4,7 @@
 int main() {
 
     char topic[] = "upb/ec/100/pressure";
-    char client_topic[] = "upb/precis/elevator/*/floor";
+    char client_topic[] = "+/ec/100/pressure";
 
 // upb/precis/100/humidity
 // */100/*
