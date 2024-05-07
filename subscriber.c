@@ -1,9 +1,3 @@
-/*
- * Protocoale de comunicatii
- * Laborator 7 - TCP si mulplixare
- * client.c
- */
-
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <errno.h>
@@ -21,87 +15,102 @@
 #include "helpers.h"
 #define MAX_CONNECTIONS 32
 
-int ok_debug = 0;
-
-
 double power(double base, int exponent) {
-    double result = 1.0;
-    
-    // If the exponent is negative, invert the base and make the exponent positive
+    double product = 1.0;
+
+    // invert the base and the exponent if the exponent is negative
     if (exponent < 0) {
         base = 1.0 / base;
         exponent = -exponent;
     }
-    
-    // Multiply the base by itself exponent times
+
+    // restlt = base^exponent
     for (int i = 0; i < exponent; i++) {
-        result *= base;
+        product *= base;
     }
-    
-    return result;
+
+    return product;
 }
 
-void print_int(char *buff, char *topic) {
-	int8_t sign = *buff;
-	buff += sizeof(sign);
+// following the instructions from page 4 of the homework pdf
+void print_int(char *topic, char *message) {
 
-	int64_t nr = ntohl(*(u_int32_t *)buff);
+  uint8_t sign = message[0];
+  message += 1;
 
-	if (sign)
-		nr = -nr;
+  uint32_t integer = ntohl(*(uint32_t *)message);
+  if (sign)
+    integer = -integer;
 
-	printf("%s - INT - %ld\n", topic, nr);
+  printf("%s - INT - %d\n", topic, integer);
 }
 
-void print_short_real(char *buff, char *topic) {
-	float nr = ntohs(*(u_int16_t *)buff) / (float)100;
+// following the instructions from page 4 of the homework pdf
+void print_shortReal(char *topic, char *message) {
 
-	printf("%s - SHORT_REAL - %.2f\n", topic, nr);
+  uint16_t shortReal = ntohs(*(uint16_t *)message);
+  float shortRealFloat = shortReal / 100.0;
+
+  printf("%s - SHORT_REAL - %.2f\n", topic, shortRealFloat);
 }
 
-void print_float(char *buff, char *topic) {
-	int8_t sign = *buff;
-	buff += sizeof(sign);
+// following the instructions from page 4 of the homework pdf
+void print_float(char *topic, char *message) {
 
-	float nr = ntohl(*(u_int32_t *)buff);
-	buff += sizeof(uint32_t);
+  uint8_t sign = message[0];
+  message += 1;
 
-	if (sign)
-		nr = -nr;
+  float nr = ntohl(*(uint32_t *)message);
+  message += sizeof(uint32_t);
 
-	int8_t pow10 = *buff;
+  uint8_t powerValue = message[0];
 
-	printf("%s - FLOAT - %f\n", topic, nr / (float) power(10, pow10));
+  if (sign)
+    nr = -nr;
+
+  printf("%s - FLOAT - %f\n", topic, nr / (float)power(10, powerValue));
 }
 
-void parse_subscription(char *buff) {
-	char topic[51] = { 0 };
-
-	memcpy(topic, buff, 50);
-	buff += 50;
-
-	u_int8_t type = *buff;
-	buff += sizeof(u_int8_t);
-
-	switch (type) {
-	case INT:
-		print_int(buff, topic);
-		break;
-	case SHORT_REAL:
-		print_short_real(buff, topic);
-		break;
-
-	case FLOAT:
-		print_float(buff, topic);
-		break;
-
-	case STRING:
-		printf("%s - STRING - %s\n", topic, buff);
-		break;
-	default:
-		break;
-	}
+void print_string(char *topic, char *message) {
+  printf("%s - STRING - %s\n", topic, message);
 }
+
+// printing this format: <TOPIC> - <TIP_DATE> - <VALOARE_MESAJ>
+void printing_subscription(char *topic_dataType_content) {
+
+  char topic[51];
+  memset(topic, 0, 50);
+  memcpy(topic, topic_dataType_content, 50);
+  topic[50] = '\0';
+
+  topic_dataType_content += 50;
+
+  uint8_t dataType = topic_dataType_content[0];
+  topic_dataType_content += 1;
+
+  switch (dataType) {
+    case INT:
+      print_int(topic, topic_dataType_content);
+      break;
+
+    case SHORT_REAL:
+      print_shortReal(topic, topic_dataType_content);
+      break;
+
+    case FLOAT:
+      print_float(topic, topic_dataType_content);
+      break;
+
+    case STRING:
+      print_string(topic, topic_dataType_content);
+      break;
+
+    default:
+      break;
+  }
+}
+
+
 
 void run_client(int sockfd, char *argv[]) {
   char buf[MSG_MAXSIZE + 1];
@@ -139,10 +148,6 @@ void run_client(int sockfd, char *argv[]) {
 
           memset(buf, 0, sizeof(buf));
           fgets(buf, MSG_MAXSIZE, stdin);
-          
-          if(isspace(buf[0])) {
-            continue;
-          }
 
           if (strncmp(buf, "exit", 4) == 0) {
             request.request_type = EXIT;
@@ -156,7 +161,6 @@ void run_client(int sockfd, char *argv[]) {
           token = strtok(NULL, " ");
           strcpy(request.topic, token);
           request.topic_len = strlen(request.topic);
-          
 
           if (strncmp(buf, "subscribe", 9) == 0) {
             request.request_type = SUBSCRIBE;
@@ -168,16 +172,15 @@ void run_client(int sockfd, char *argv[]) {
 
           send_all(sockfd, &request, sizeof(tcp_request));
 
-
         } else if (i == 1) {
-          
+
           struct chat_packet received_packet;
           memset(&received_packet, 0, sizeof(struct chat_packet));
 
           int rc = recv_all(sockfd, &received_packet, sizeof(struct chat_packet));
           DIE(rc <= 0, "recv_all received_packet");
 
-          parse_subscription(received_packet.message);
+          printing_subscription(received_packet.message);
 
         }
       }
@@ -185,6 +188,8 @@ void run_client(int sockfd, char *argv[]) {
   }
 }
 
+
+// this is the main function copied from the laboratory 7 skel
 int main(int argc, char *argv[]) {
   if (argc != 4) {
     printf("\n Usage: %s <ip> <port>\n", argv[0]);
