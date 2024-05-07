@@ -44,9 +44,9 @@ struct tcp_client {
   int sockfd;
   char id[10];
   int connected;
-  
+
   // list of topics where the client is subscribed
-  char subscribed_topics[100][50];
+  char subscribed_topics[50][50];
 
   // the ip and port of the client
   char ip[50];

@@ -151,10 +151,20 @@ void run_client(int sockfd, char *argv[]) {
 
           if (strncmp(buf, "exit", 4) == 0) {
             request.request_type = EXIT;
-
             send_all(sockfd, &request, sizeof(tcp_request));
-
             return;
+
+          } else if (strncmp(buf, "subscribe", 9) == 0) {
+            request.request_type = SUBSCRIBE;
+            printf("Subscribed to topic.\n");
+
+          } else if (strncmp(buf, "unsubscribe", 11) == 0) {
+            request.request_type = UNSUBSCRIBE;
+            printf("Unsubscribed from topic.\n");
+
+          } else {
+            printf("Invalid command.\n");
+            continue;
           }
 
           char *token = strtok(buf, " ");
@@ -162,15 +172,8 @@ void run_client(int sockfd, char *argv[]) {
           strcpy(request.topic, token);
           request.topic_len = strlen(request.topic);
 
-          if (strncmp(buf, "subscribe", 9) == 0) {
-            request.request_type = SUBSCRIBE;
-            printf("Subscribed to topic.\n");
-          } else if (strncmp(buf, "unsubscribe", 11) == 0) {
-            request.request_type = UNSUBSCRIBE;
-            printf("Unsubscribed from topic.\n");
-          }
-
           send_all(sockfd, &request, sizeof(tcp_request));
+
 
         } else if (i == 1) {
 

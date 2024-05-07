@@ -1,8 +1,4 @@
-# Protocoale de comunicatii
-# Laborator 7 - TCP
-# Echo Server
-# Makefile
-
+# lab 7 makefile
 CFLAGS = -Wall -g -Werror -Wno-error=unused-variable
 
 # Portul pe care asculta serverul
@@ -27,7 +23,7 @@ subscriber: subscriber.c common.o
 run_server:
 	./server ${IP_SERVER} ${PORT}
 
-# Ruleaza subscriberul 	
+# Ruleaza subscriberul
 run_subscriber:
 	./subscriber ${IP_SERVER} ${PORT}
 

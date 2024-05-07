@@ -190,16 +190,18 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
         } else if (poll_fds[i].fd == STDIN_FILENO) {
 
           // reading from stdin
-          char stdin_message[100];
+          char stdin_message[50];
           fscanf(stdin, "%s", stdin_message);
 
           // only exit command is accepted
           if (strncmp(stdin_message, "exit", 4) == 0) {
 
-            for (int j = 2; j < num_sockets; j++) {
+            for (int j = 0; j < num_sockets; j++) {
               close(poll_fds[j].fd);
               return;
             }
+          } else {
+            printf("Invalid command.\n");
           }
 
         } else {
@@ -268,7 +270,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                 new_client->port = request.client_port;
                 new_client->connected = 1;
 
-                for (int i = 0; i < 100; i++) {
+                for (int i = 0; i < 50; i++) {
                   for (int j = 0; j < 50; j++) {
                     new_client->subscribed_topics[i][j] = 0;
                   }
@@ -341,7 +343,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                     // deleting the topic
                     found = 1;
 
-                    for (int k = q; k < 100; k++) {
+                    for (int k = q; k < 50; k++) {
                       if (k == 99) {
                         memset(subs_client->subscribed_topics[k], 0, 50);
                       } else {
@@ -360,7 +362,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                       debug(subs_client->subscribed_topics[q], -1);
                       debug(request.topic, -1);
 
-                      for (int k = q; k < 100; k++) {
+                      for (int k = q; k < 50; k++) {
                         if (k == 99) {
                           memset(subs_client->subscribed_topics[k], 0, 50);
                         } else {
