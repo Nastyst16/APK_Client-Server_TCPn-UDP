@@ -4,13 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*
- * Macro de verificare a erorilor
- * Exemplu:
- * 		int fd = open (file_name , O_RDONLY);
- * 		DIE( fd == -1, "open failed");
- */
-
 #define DIE(assertion, call_description)                                       \
   do {                                                                         \
     if (assertion) {                                                           \

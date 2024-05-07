@@ -105,8 +105,6 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
       if (poll_fds[i].revents & POLLIN) {
         if (poll_fds[i].fd == listenfd) {
 
-          debug("Received a connection request on the listen socket.", -1);
-
           // received a connection request on the listen socket, accept it
           struct sockaddr_in cli_addr;
           socklen_t cli_len = sizeof(cli_addr);
@@ -362,8 +360,6 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
                       // if the topic contains wildcards and matches the client's topic
                       // then unsubscribe the client
-                      debug(subs_client->subscribed_topics[q], -1);
-                      debug(request.topic, -1);
 
                       for (int k = q; k < 50; k++) {
                         if (k == 99) {
