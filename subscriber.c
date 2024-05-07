@@ -184,7 +184,6 @@ void run_client(int sockfd, char *argv[]) {
           DIE(rc <= 0, "recv_all received_packet");
 
           printing_subscription(received_packet.message);
-
         }
       }
     }

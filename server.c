@@ -104,6 +104,9 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
 
       if (poll_fds[i].revents & POLLIN) {
         if (poll_fds[i].fd == listenfd) {
+
+          debug("Received a connection request on the listen socket.", -1);
+
           // received a connection request on the listen socket, accept it
           struct sockaddr_in cli_addr;
           socklen_t cli_len = sizeof(cli_addr);
@@ -434,10 +437,6 @@ int main(int argc, char *argv[]) {
   const int fd_udp_client = socket(AF_INET, SOCK_DGRAM, 0);
   DIE(fd_udp_client < 0, "socket");
 
-  // Completăm in serv_addr adresa serverului, familia de adrese si portul
-  // pentru conectare
-
-  //
   struct sockaddr_in serv_addr;
   socklen_t socket_len = sizeof(struct sockaddr_in);
 

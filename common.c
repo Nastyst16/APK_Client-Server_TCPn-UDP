@@ -1,5 +1,5 @@
 #include "common.h"
-#include <string.h> 
+#include <string.h>
 
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -37,26 +37,3 @@ int send_all(int sockfd, void *buffer, size_t len) {
   return bytes_sent;
 }
 
-// this function is used to print debug messages
-// very helpfull and considering not deleting it
-void debug(char *message, int value) {
-
-	FILE *f = fopen("debug.txt", "a");
-
-	if (message != NULL) {
-		// fprintf(f, "%s", message);
-
-    // maybe message has not \0 at the final
-    for (int i = 0; i < strlen(message); i++) {
-      fprintf(f, "%c", message[i]);
-    }
-
-	}
-
-	if (value != -1) {
-		fprintf(f, "%d", value);
-	}
-
-	fprintf(f, "\n");
-	fclose(f);
-}
