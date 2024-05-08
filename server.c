@@ -15,7 +15,6 @@
 #include "common.h"
 #include "helpers.h"
 
-
 #define MAX_CONNECTIONS 32
 
 #define IP "127.0.0.1"
@@ -99,7 +98,6 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
     rc = poll(poll_fds, num_sockets, -1);
     DIE(rc < 0, "poll");
 
-
     for (int i = 0; i < num_sockets; i++) {
 
       if (poll_fds[i].revents & POLLIN) {
@@ -117,21 +115,10 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
           rc = setsockopt(newsockfd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
           DIE(rc < 0, "setsockopt");
 
-          // saving the new client
-          tcp_client *new_client = malloc(sizeof(tcp_client));
-          new_client->sockfd = newsockfd;
-          new_client->connected = 0;
-
-          strcpy(new_client->ip, inet_ntoa(cli_addr.sin_addr));
-          new_client->port = cli_addr.sin_port;
-
-
-          // Adaugam noul socket intors de accept() la multimea descriptorilor
-          // de citire
+          // adding the new socket to the poll_fds array
           poll_fds[num_sockets].fd = newsockfd;
           poll_fds[num_sockets].events = POLLIN;
           num_sockets++;
-
 
         } else if (poll_fds[i].fd == fd_udp_client) {
 
@@ -280,10 +267,10 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                 clients[clients_count] = *new_client;
                 clients_count++;
 
-                // adding the client to the poll_fds array
-                poll_fds[num_sockets].fd = poll_fds[i].fd;
-                poll_fds[num_sockets].events = POLLIN;
-                num_sockets++;
+                // // adding the client to the poll_fds array
+                // poll_fds[num_sockets].fd = poll_fds[i].fd;
+                // poll_fds[num_sockets].events = POLLIN;
+                // num_sockets++;
               }
 
               break;
@@ -374,6 +361,7 @@ void run_chat_multi_server(int listenfd, int fd_udp_client) {
                   q++;
                 }
               }
+
               break;
 
             case EXIT:
@@ -422,7 +410,7 @@ int main(int argc, char *argv[]) {
   memset(clients, 0, sizeof(clients));
 
   // parsing the port as a number
-  uint16_t port;
+  uint16_t port = 12345;
   int rc = sscanf(argv[1], "%hu", &port);
   DIE(rc != 1, "Given port is invalid");
 

@@ -36,4 +36,3 @@ int send_all(int sockfd, void *buffer, size_t len) {
 
   return bytes_sent;
 }
-
